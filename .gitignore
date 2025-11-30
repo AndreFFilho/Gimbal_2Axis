@@ -1,0 +1,58 @@
+# ==========================
+#   ESP-IDF / Build System
+# ==========================
+
+# Pastas de build
+/build/
+/build-*/
+
+# Artifacts de compilação
+*.elf
+*.bin
+*.hex
+*.map
+*.img
+*.dump
+
+# Componentes gerenciados
+/managed_components/
+
+# ==========================
+#   SDKConfig
+# ==========================
+
+sdkconfig
+sdkconfig.old
+
+# ==========================
+#   IDE / Editor
+# ==========================
+
+.vscode/
+.idea/
+*.code-workspace
+
+# ==========================
+#   Python
+# ==========================
+
+__pycache__/
+*.pyc
+
+# ==========================
+#   Logs / Cores
+# ==========================
+
+*.log
+core
+*.core
+
+# ==========================
+#   Sistema e arquivos temporários
+# ==========================
+
+*.tmp
+.DS_Store
+Thumbs.db
+.clangd
+.clangd/
