@@ -1,0 +1,8 @@
+# Interface gráfica
+flet
+
+# MQTT sobre TLS (HiveMQ Cloud)
+paho-mqtt
+
+# Planilha .xlsx dos favoritos (a GUI cria/atualiza)
+openpyxl
