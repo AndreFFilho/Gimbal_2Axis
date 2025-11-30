@@ -183,6 +183,15 @@ A interface gráfica permite visualizar a telemetria e enviar comandos. O códig
 
 ---
 
+## 👏 Créditos e Bibliotecas
+
+Este projeto utiliza ferramentas de código aberto robustas. Agradecimentos especiais aos desenvolvedores de:
+
+* **[SimpleFOC](https://simplefoc.com/)**: Biblioteca de controle vetorial (FOC) para Arduino/ESP32, mantida por Antun Skuric e comunidade.
+* **[I2Cdev / MPU6050](https://github.com/jrowberg/i2cdevlib)**: Driver original de Jeff Rowberg e porta para ESP32 por ElectronicCats, essenciais para o uso do DMP.
+* **[Flet](https://flet.dev/)**: Framework Python utilizado para a construção da interface gráfica moderna e reativa.
+* **[ESP-IDF](https://docs.espressif.com/projects/esp-idf/en/latest/esp32/)**: Framework de desenvolvimento IoT oficial da Espressif.
+
 ## 📝 Licença e Autores
 
 Projeto desenvolvido como requisito das disciplinas de **Automação em Tempo Real** e **Projeto de Sistemas Embutidos (UFMG)**.
