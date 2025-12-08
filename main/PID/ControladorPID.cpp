@@ -12,7 +12,7 @@
 #include "ControladorPID.h"
 #include "mainGlobals.h"
 
-// --- Definições para o controle do motor ---
+// --- Definições ---
 #define IN1_1 19
 #define IN2_1 18
 #define IN3_1 17
@@ -22,26 +22,24 @@
 #define IN3_2 27
 #define EN2 14
 
-const float deadzone = 0.0349066;       // 2 graus em radianos
-const float MAX_ANGLE = 1.46608f;		// Ângulo, em radiano, máximo permitido para Pitch e Roll (para evitar Gimbal Lock)
+const float deadzone = 0.005;
+const float MAX_ANGLE = 1.46608f;
 
 #define MAX_INTEGRADOR 30.0f
 #define MIN_INTEGRADOR -30.0f
-#define D_FILTER_ALPHA 0.01f
+#define D_FILTER_ALPHA 0.2f
 
-// --- Variáveis Globais de Controle (Privadas) ---
-static BLDCMotor motor_pitch = BLDCMotor(7);                           // Motor de brushless com 7 polos
+// Variáveis Globais
+static BLDCMotor motor_pitch = BLDCMotor(7);
 static BLDCDriver3PWM driver_pitch = BLDCDriver3PWM(IN1_1, IN2_1, IN3_1, EN1);
-
-static BLDCMotor motor_roll = BLDCMotor(7);                            // Motor de brushless com 7 polos
+static BLDCMotor motor_roll = BLDCMotor(7);
 static BLDCDriver3PWM driver_roll = BLDCDriver3PWM(IN1_2, IN2_2, IN3_2, EN2);
 
-// --- LÓGICA PID (Privada) ---
 // Estrutura PID
 typedef struct {
     float kp, ki, kd;
     float integrador;
-    float erro_anterior;
+    float medicao_anterior;
     float derivada_filtrada;
 } PID_t;
 
@@ -50,38 +48,41 @@ void PID_Init(PID_t *pid, float kp, float ki, float kd) {
     pid->kp = kp;
     pid->ki = ki;
     pid->kd = kd;
-    pid->integrador = 0;
-    pid->erro_anterior = 0;
-    pid->derivada_filtrada = 0;
+    pid->integrador = 0.0f;
+    pid->medicao_anterior = 0.0f;
+    pid->derivada_filtrada = 0.0f;
 }
 
 // Calcula a saída do controlador PID
-float PID_Compute(PID_t *pid, float erro, float dt) {
-    if (dt <= 0.0f) return 0.0f; // Evita divisão por zero ou valores negativos
+float PID_Compute(PID_t *pid, float erro, float medicao, float dt) {
+    if (dt <= 0.0f) return 0.0f;
 
-    // Atualiza o integrador com anti-windup
-    pid->integrador += erro*dt;
-    if(pid->integrador > MAX_INTEGRADOR) pid->integrador = MAX_INTEGRADOR; // Anti-windup
-    else if(pid->integrador < MIN_INTEGRADOR) pid->integrador = MIN_INTEGRADOR; // Anti-windup
+    // P
+    float P = pid->kp * erro;
 
-    // Calcula a derivada com filtro passa-baixa
-    float derivada = (erro - pid->erro_anterior) / dt;
-    pid->derivada_filtrada = (D_FILTER_ALPHA * derivada) + (1.0f - D_FILTER_ALPHA) * pid->derivada_filtrada;
+    // I
+    pid->integrador += erro * dt;
+    if (pid->integrador > MAX_INTEGRADOR) pid->integrador = MAX_INTEGRADOR;
+    else if (pid->integrador < MIN_INTEGRADOR) pid->integrador = MIN_INTEGRADOR;
+    float I = pid->ki * pid->integrador;
 
-    // Armazena o erro atual para a próxima iteração
-    pid->erro_anterior = erro;
+    // D
+    float derivada_raw = -(medicao - pid->medicao_anterior) / dt;
+    pid->derivada_filtrada = (D_FILTER_ALPHA * derivada_raw) + (1.0f - D_FILTER_ALPHA) * pid->derivada_filtrada;
+    float D = pid->kd * pid->derivada_filtrada;
 
-    return (pid->kp * erro) +
-           (pid->ki * pid->integrador) +
-           (pid->kd * pid->derivada_filtrada);
+    pid->medicao_anterior = medicao;
+    return P + I + D;
 }
 
 // --- Tarefa Principal ---
 void task_pid(void *ignore) {
     xSemaphoreTake(g_mpu_pronta, portMAX_DELAY);
+    // Espera um pouco para o sensor estabilizar totalmente
+    vTaskDelay(pdMS_TO_TICKS(500)); 
 
-    LOGI("PID", "Iniciando tarefa PID...");
-
+    LOGI("PID", "Configurando Motores...");
+    
     // Configuração do driver BLDC
     driver_pitch.voltage_power_supply = 12;
     driver_roll.voltage_power_supply = 12;
@@ -108,21 +109,37 @@ void task_pid(void *ignore) {
 
     // Inicialização do PID
     PID_t pid_pitch, pid_roll;
-    PID_Init(&pid_pitch, 1.0f, 0.01f, 0.6f);
-    PID_Init(&pid_roll,  1.0f, 0.01f, 0.25f);
+    PID_Init(&pid_pitch, 8.0f, 0.01f, 1.0f);
+    PID_Init(&pid_roll,  8.0f, 0.01f, 1.2f);
 
-    const float dt = 0.005f; // 5ms de tempo fixo para o PID
+    const float dt = 0.001f;     // 1ms de tempo fixo para o PID
     float erro_pitch, erro_roll;
     float setpoint_pitch, setpoint_roll;
     float medicao_pitch_rad, medicao_roll_rad;
 
-    const TickType_t xFrequency = pdMS_TO_TICKS(5); // 5ms
+    // Variáveis da Rampa
+    static float setpoint_suave_pitch = 0.0f;
+    static float setpoint_suave_roll = 0.0f;
+    // Diminuí a velocidade da rampa para garantir torque (0.001 rad/ms = 1 rad/s)
+    float max_step = 0.001f; 
+
+    // Lê onde o gimbal está AGORA para começar a rampa dali
+    xSemaphoreTake(mutex_sensor_data, portMAX_DELAY);
+    setpoint_suave_pitch = pr_medido[0]; 
+    setpoint_suave_roll  = pr_medido[1];
+    
+    // Também inicializa o histórico do PID para evitar derivada louca no primeiro loop
+    pid_pitch.medicao_anterior = pr_medido[0];
+    pid_roll.medicao_anterior  = pr_medido[1];
+    xSemaphoreGive(mutex_sensor_data);
+
+    const TickType_t xFrequency = pdMS_TO_TICKS(1); // 1ms
     TickType_t xLastWakeTime = xTaskGetTickCount();
 
     LOGI("PID", "Iniciando loop de cálculo PID...");
     
     while (1) {
-        // 1. ESPERA ATÉ O PRÓXIMO CICLO DE 5ms
+        // 1. ESPERA ATÉ O PRÓXIMO CICLO DE 1ms
         vTaskDelayUntil(&xLastWakeTime, xFrequency);
         
         // 2. PEGA O SETPOINT ATUALIZADO
@@ -142,24 +159,37 @@ void task_pid(void *ignore) {
         medicao_roll_rad  = pr_medido[1]; // Já está em radianos
         xSemaphoreGive(mutex_sensor_data);
 
-        // 5. CALCULA O ERRO
-        erro_pitch = setpoint_pitch - medicao_pitch_rad;	// Erro de Pitch em radianos
-        erro_roll = setpoint_roll - medicao_roll_rad;		// Erro de Roll em radianos
-
-        // 6. APLICA DEADZONE
-        if (fabsf(erro_pitch) < deadzone) {
-            erro_pitch = 0.0f;
-        }
-        if (fabsf(erro_roll) < deadzone) {
-            erro_roll = 0.0f;
+        // 5. RAMPA SUAVE
+        float diferenca_p = setpoint_pitch - setpoint_suave_pitch;
+        if (fabs(diferenca_p) > max_step) {
+            if (diferenca_p > 0) setpoint_suave_pitch += max_step;
+            else setpoint_suave_pitch -= max_step;
+        } else {
+            setpoint_suave_pitch = setpoint_pitch;
         }
 
-        // 7. CALCULA O PID COM O 'dt' FIXO
-        float output_pitch = PID_Compute(&pid_pitch, erro_pitch, dt);
-        float output_roll  = PID_Compute(&pid_roll,  erro_roll, dt);
+        float diferenca_r = setpoint_roll - setpoint_suave_roll;
+        if (fabs(diferenca_r) > max_step) {
+            if (diferenca_r > 0) setpoint_suave_roll += max_step;
+            else setpoint_suave_roll -= max_step;
+        } else {
+            setpoint_suave_roll = setpoint_roll;
+        }
 
-        // 8. ATUALIZA A SAÍDA PARA O MOTOR
-        motor_pitch.move(output_pitch);
+        // 6. CALCULA O ERRO
+        erro_pitch = setpoint_suave_pitch - medicao_pitch_rad;  // Erro de Pitch em radianos
+        erro_roll  = setpoint_suave_roll  - medicao_roll_rad;   // Erro de Roll em radianos
+
+        // 7. APLICA DEADZONE
+        if (fabsf(erro_pitch) < deadzone) erro_pitch = 0.0f;
+        if (fabsf(erro_roll) < deadzone) erro_roll = 0.0f;
+
+        // 8. CALCULA O PID COM O 'dt' FIXO
+        float output_pitch = PID_Compute(&pid_pitch, erro_pitch, medicao_pitch_rad, dt);
+        float output_roll  = PID_Compute(&pid_roll,  erro_roll, medicao_roll_rad, dt);
+
+        // 9. ATUALIZA A SAÍDA PARA O MOTOR
+        motor_pitch.move(-output_pitch);
         motor_roll.move(output_roll);
     }
 }
