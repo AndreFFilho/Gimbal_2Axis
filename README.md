@@ -7,7 +7,7 @@
 
 Este repositório contém o código-fonte do sistema embarcado e da interface de supervisão para um **Gimbal de 2 Eixos** (Pitch e Roll). O projeto foi desenvolvido com foco em **Automação em Tempo Real** e **Projeto de Sistemas Embutidos**, utilizando o microcontrolador ESP32.
 
-O sistema combina controle vetorial de motores (FOC), fusão sensorial via DMP e comunicação IoT segura via MQTT.
+O sistema combina controle vetorial de motores (FOC), fusão sensorial via Filtro de Kalman e comunicação IoT segura via MQTT.
 
 ---
 
@@ -24,7 +24,7 @@ O projeto está dividido em duas partes principais:
 
 * **Real-Time Control:** Laço PID determinístico rodando a **200Hz (5ms)**, priorizado via FreeRTOS.
 * **SimpleFOC:** Controle vetorial (SVPWM) para motores Brushless (BLDC), garantindo movimentos suaves.
-* **Sensor Fusion:** Utiliza o **DMP (Digital Motion Processor)** do MPU6050 para processamento de quaternions, aliviando a CPU principal.
+* **Sensor Fusion:** Utiliza o **Filtro de Kalman**.
 * **IoT & MQTT:** Telemetria de ângulos/bateria e recebimento de setpoints remotos via MQTT com suporte a TLS.
 * **Multitarefa:** Arquitetura baseada em Tasks, Filas, Mutexes e Semáforos para evitar *race conditions*.
 * **Ambiente Reprodutível:** Suporte nativo a **Docker (Dev Containers)**.
@@ -76,7 +76,7 @@ O código foi organizado de forma modular para facilitar a manutenção e testab
 │   ├── BOTAO/           # Tratamento de interrupção e debounce
 │   ├── BUFFER/          # Buffer circular (Produtor-Consumidor)
 │   ├── LOGGER/          # Sistema de logs híbrido (Serial/MQTT)
-│   ├── MPU6050/         # Abstração do driver e gestão do DMP
+│   ├── MPU6050/         # Abstração do driver e gestão do Filtro de Kalman
 │   ├── PID/             # Algoritmo de controle e SimpleFOC
 │   ├── WIFI_MQTT/       # Gestão de conexão e protocolo IoT
 │   ├── main.c           # Inicialização e orquestração de Tasks
@@ -132,7 +132,7 @@ idf.py -p COMx flash monitor
 O código segue uma estrutura modular para facilitar a manutenção:
 
 * **`main/PID/`**: Lógica de controle e interface com SimpleFOC.
-* **`main/MPU6050/`**: Driver do sensor e gestão do FIFO/DMP.
+* **`main/MPU6050/`**: Driver do sensor e gestão do Filtro de Kalman.
 * **`main/BUFFER/`**: Buffer circular para desacoplar a leitura do sensor (rápida) do envio MQTT (lento).
 * **`main/WIFI_MQTT/`**: Gerenciamento de conexão assíncrona.
 * **`main/LOGGER/`**: Redirecionamento de logs (Serial + MQTT).
@@ -188,7 +188,7 @@ A interface gráfica permite visualizar a telemetria e enviar comandos. O códig
 Este projeto utiliza ferramentas de código aberto robustas. Agradecimentos especiais aos desenvolvedores de:
 
 * **[SimpleFOC](https://simplefoc.com/)**: Biblioteca de controle vetorial (FOC) para Arduino/ESP32, mantida por Antun Skuric e comunidade.
-* **[I2Cdev / MPU6050](https://github.com/jrowberg/i2cdevlib)**: Driver original de Jeff Rowberg e porta para ESP32 por ElectronicCats, essenciais para o uso do DMP.
+* **[I2Cdev / MPU6050](https://github.com/jrowberg/i2cdevlib)**: Driver original de Jeff Rowberg e porta para ESP32 por ElectronicCats.
 * **[Flet](https://flet.dev/)**: Framework Python utilizado para a construção da interface gráfica moderna e reativa.
 * **[ESP-IDF](https://docs.espressif.com/projects/esp-idf/en/latest/esp32/)**: Framework de desenvolvimento IoT oficial da Espressif.
 
