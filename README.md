@@ -1,168 +1,149 @@
-# 🚁 Gimbal Estabilizador IoT de 2 Eixos (ESP32)
+# 📷 IoT 2-Axis Gimbal Stabilization System (ESP32)
 
 ![Language](https://img.shields.io/badge/language-C%2B%2B%20%7C%20Python-blue)
 ![Platform](https://img.shields.io/badge/platform-ESP32-red)
 ![Framework](https://img.shields.io/badge/framework-ESP--IDF-green)
 ![License](https://img.shields.io/badge/license-MIT-orange)
 
-Este repositório contém o código-fonte do sistema embarcado e da interface de supervisão para um **Gimbal de 2 Eixos** (Pitch e Roll). O projeto foi desenvolvido com foco em **Automação em Tempo Real** e **Projeto de Sistemas Embutidos**, utilizando o microcontrolador ESP32.
+This repository contains the firmware for the embedded system and the supervisory interface for a **2-Axis Gimbal** (Pitch and Roll). The project was developed with a focus on **Real-Time Automation** and **Embedded Systems**, using the **ESP32** microcontroller.
 
-O sistema combina controle vetorial de motores (FOC), fusão sensorial via Filtro de Kalman e comunicação IoT segura via MQTT.
-
----
-
-## 📂 Estrutura do Repositório
-
-O projeto está dividido em duas partes principais:
-
-1.  **`main/` & `components/`**: Firmware do ESP32 (C/C++ com ESP-IDF).
-2.  **`Interface/`**: Interface Desktop de Supervisão (Python + Flet).
+The system combines **Field Oriented Control** (FOC), Sensor Fusion via **Kalman Filter**, and secure IoT communication over **MQTT**.
 
 ---
 
-## 🌟 Funcionalidades do Firmware
+## 📂 Repository Structure
 
-* **Real-Time Control:** Laço PID determinístico rodando a **200Hz (5ms)**, priorizado via FreeRTOS.
-* **SimpleFOC:** Controle vetorial (SVPWM) para motores Brushless (BLDC), garantindo movimentos suaves.
-* **Sensor Fusion:** Utiliza o **Filtro de Kalman**.
-* **IoT & MQTT:** Telemetria de ângulos/bateria e recebimento de setpoints remotos via MQTT com suporte a TLS.
-* **Multitarefa:** Arquitetura baseada em Tasks, Filas, Mutexes e Semáforos para evitar *race conditions*.
-* **Ambiente Reprodutível:** Suporte nativo a **Docker (Dev Containers)**.
-
----
-
-## 🛠️ Hardware e Pinagem
-
-O firmware está configurado para o seguinte mapeamento de IOs no ESP32 (DevKit V1):
-
-* **Microcontrolador:** ESP32 (DevKit V1 ou similar).
-* **Sensores:** MPU6050 (Acelerômetro + Giroscópio).
-* **Atuadores:** 2x Motores Brushless (Gimbal Motors) + Drivers (SimpleFOC Mini v1.0).
-* **Alimentação:** Bateria Li-Ion 2S (7.4V).
-* **Conversores:** Buck Mini360 e Boost XL6009.
-* **Conexões (Pinout Padrão):**
-
-| Componente | Pinos ESP32 | Função | Detalhes |
-| :--- | :--- | :--- | :--- |
-| **I2C Bus** | GPIO 21 (SDA), 22 (SCL) | Comunicação | Sensor MPU6050 (Endereço 0x68) |
-| **Motor Pitch** | GPIO 19, 18, 17 | PWM (Fases A/B/C) | SimpleFOC Mini v1.0 |
-| **Motor Roll** | GPIO 25, 26, 27 | PWM (Fases A/B/C) | SimpleFOC Mini v1.0 |
-| **Enable Motores**| GPIO 4 (Pitch), 14 (Roll)| Digital Out | Habilita os Drivers |
-| **Bateria** | GPIO 34 | Analog In (ADC) | Divisor de Tensão (Leitura 2S) |
-| **Botão** | GPIO 33 | Digital In (ISR) | Botão físico com Pull-up |
-| **LED Status** | GPIO 32 | Digital Out | Indicação de Bateria |
-
-### 🖨️ Placa de Circuito Impresso (PCB)
-Foi desenvolvida uma PCB dedicada para garantir a robustez mecânica do gimbal. O projeto inclui regulação de tensão e conectores modulares.
-
-| Vista Superior (Top) | Vista Inferior (Bottom) |
-| :---: | :---: |
-| ![PCB Frente](assets/pcb_front.png) | ![PCB Verso](assets/pcb_back.png) |
-
-> **Nota:** O projeto da PCB foi realizado no EasyEDA e os arquivos de fabricação (Gerber) podem ser solicitados ou encontrados na pasta `hardware/`.
-
----
-
-## 📂 Estrutura do Projeto
-
-O código foi organizado de forma modular para facilitar a manutenção e testabilidade:
+The repository is organized in a modular way to facilitate maintenance and testing:
 
 ```text
-├── assets/              # Imagens da placa PCB e Esquematico
-├── hardware/            # Arquivos Gerber (PCB)
-├── components/          # Bibliotecas externas (I2Cdev, MPU6050)
+├── assets/              # PCB Design and Schematics
+├── hardware/            # Gerber Files (PCB Manufacturing)
+├── components/          # External Libraries (I2Cdev, MPU6050)
 ├── main/
-│   ├── BATERIA/         # Leitura ADC e filtro de média móvel
-│   ├── BOTAO/           # Tratamento de interrupção e debounce
-│   ├── BUFFER/          # Buffer circular (Produtor-Consumidor)
-│   ├── LOGGER/          # Sistema de logs híbrido (Serial/MQTT)
-│   ├── MPU6050/         # Abstração do driver e gestão do Filtro de Kalman
-│   ├── PID/             # Algoritmo de controle e SimpleFOC
-│   ├── WIFI_MQTT/       # Gestão de conexão e protocolo IoT
-│   ├── main.c           # Inicialização e orquestração de Tasks
-│   └── mainGlobals.h    # Mutexes, Semáforos e Variáveis Globais
-├── .devcontainer/       # Configuração para ambiente Docker
-├── Interface/           # Interface em Flet
-└── CMakeLists.txt       # Configuração de build
+│   ├── BATERIA/         # ADC Reading and Moving Average Filter
+│   ├── BOTAO/           # Interrupt Handling and Debounce
+│   ├── BUFFER/          # Circular Buffer (Producer-Consumer)
+│   ├── LOGGER/          # Hybrid Logging System (Serial/MQTT)
+│   ├── MPU6050/         # Driver Abstraction and Kalman Filter
+│   ├── PID/             # Control Algorithm and SimpleFOC
+│   ├── WIFI_MQTT/       # Connection Management and IoT Protocol
+│   ├── main.c           # System Initialization and Task Orchestration
+│   └── mainGlobals.h    # Mutexes, Semaphores and Global Variables
+├── .devcontainer/       # Docker Environment Configuration
+├── Interface/           # Flet Interface (Python)
+└── CMakeLists.txt       # Build Configuration
 ```
 
-## 🚀 Guia de Compilação (Firmware)
+---
 
-### Pré-requisitos
-* **ESP-IDF v5.5.1** (Versão recomendada).
-* Driver USB do ESP32 (CP210x ou CH340).
+## 🌟 Firmware Features
 
-### Opção A: Usando Docker (Recomendado)
-Este repositório inclui a pasta `.devcontainer`. Se você usa VS Code:
-1.  Instale a extensão **Dev Containers**.
-2.  Abra a pasta do projeto e clique em **"Reopen in Container"**.
-3.  O ambiente será montado automaticamente com todas as ferramentas.
+* **Real-Time Control:** Deterministic **PID loop** running at **200Hz (5ms)**, prioritized via FreeRTOS.
+* **SimpleFOC:** Vector Control (SVPWM) for Brushless motors (BLDC), ensuring smooth motion.
+* **Sensor Fusion:** Implemented via **Kalman Filter**.
+* **IoT & MQTT:** Telemetry (Angle/Battery) and remote setpoint reception over MQTT with TLS support.
+* **Multitasking:** Architecture based on Tasks, Queues, Mutexes and Semaphores to prevent *race conditions*.
+* **Reproducible Environment:** Native support for **Docker (Dev Containers)**.
+
+---
+
+## 🛠️ Hardware and Pinout
+
+The firmware is configured with the **following** pin assignment for the ESP32 (DevKit V1):
+
+* **Microcontroller:** ESP32 (DevKit V1 or similar).
+* **Sensors:** MPU6050 (Accelerometer + Gyroscope).
+* **Actuators:** 2x Brushless Motors (Gimbal Motors) + 2x Drivers (SimpleFOC Mini v1.0).
+* **Power Supply:** Li-Ion Battery 2S (7.4V).
+* **Converters:** Buck Mini360 and Boost XL6009.
+* **Connections (Default Pinout):**
+
+| Component | ESP32 Pin | Function | Details |
+| :--- | :--- | :--- | :--- |
+| **I2C Bus** | GPIO 21 (SDA), 22 (SCL) | Communication | MPU6050 Sensor (Address 0x68) |
+| **Pitch Motor** | GPIO 19, 18, 17 | PWM (Phases A/B/C) | SimpleFOC Mini v1.0 |
+| **Roll Motor** | GPIO 25, 26, 27 | PWM (Phases A/B/C) | SimpleFOC Mini v1.0 |
+| **Motor Enable**| GPIO 4 (Pitch), 14 (Roll)| Digital Out | Driver Enable Signal |
+| **Battery** | GPIO 34 | Analog In (ADC) | Voltage Divider (2S Monitoring) |
+| **Button** | GPIO 33 | Digital In (ISR) | Physical Button with Pull-up |
+| **Status LED** | GPIO 32 | Digital Out | Battery Indicator |
+
+### 🖨️ Printed Circuit Board (PCB)
+
+A dedicated PCB was developed to ensure **mechanical robustness** for the Gimbal assembly. The **design includes** onboard voltage regulation and modular connectors.
+
+| Top View | Bottom View |
+| :---: | :---: |
+| ![Front View PCB](assets/pcb_front.png) | ![Back View PCB](assets/pcb_back.png) |
+
+> **Note:** The PCB was designed using **EasyEDA**. Manufacturing files (Gerbers) can be found in the `hardware/` folder.
+
+## 🚀 Compilation Guide (Firmware)
+
+### Prerequisites
+* **ESP-IDF v5.5.1** (Recommended Version).
+* ESP32 USB Driver (CP210x or CH340).
+
+### Option A: Docker (Recommended)
+This repository includes a `.devcontainer` configuration. If you are using VS Code:
+1.  Install the **Dev Containers** extension.
+2.  Open the project folder and click on **"Reopen in Container"**.
+3.  The environment will be set up automatically with all necessary tools.
 4.  Compile:
     ```bash
     idf.py build
     ```
 
-### Opção B: Instalação Manual (Nativa)
-1.  Instale o ESP-IDF v5.5.1.
-2.  Baixe a dependência do SimpleFOC:
+### Option B: Manual Installation (Native)
+1.  Install the ESP-IDF v5.5.1.
+2.  Download the SimpleFOC dependency:
     ```bash
     idf.py add-dependency "espressif/esp_simplefoc^1.2.1"
     ```
-3.  **Configuração Crítica (Kernel):**
+3.  **Critical Configuration (Kernel):**
     * Execute `idf.py menuconfig`.
-    * Vá em `Component config` → `FreeRTOS` → `Kernel`.
-    * Altere `configTICK_RATE_HZ` para **1000** (1kHz). *Isso é essencial para o loop de 5ms funcionar corretamente.*
+    * Navigate to `Component config` → `FreeRTOS` → `Kernel`.
+    * Change `configTICK_RATE_HZ` to **1000** (1kHz). *This is essential for the main loop (5ms) to run correctly.*
 
-### Configuração de Rede (Wi-Fi e MQTT)
-⚠️ **Atenção:** As credenciais não estão versionadas por segurança. Edite antes de compilar:
-1.  **Wi-Fi:** `main/WIFI_MQTT/wifi_sta.c` (SSID e Senha).
-2.  **MQTT:** `main/WIFI_MQTT/mqtt_esp32.c` (URI do Broker, Usuário e Senha).
+### Network Configuration (Wi-Fi and MQTT)
+⚠️ **Warning:** Security credentials are not version-controlled (ignored by git). Please update the following files before compiling: 
 
-### Gravando e Monitorando
-Conecte o ESP32 via USB e execute:
+1.  **Wi-Fi:** `main/WIFI_MQTT/wifi_sta.c` (SSID and Password).
+2.  **MQTT:** `main/WIFI_MQTT/mqtt_esp32.c` (Broker URI, Username and Password).
+
+### Flashing and Monitoring
+Connect the ESP32 via USB and run:
 ```bash
-# Substitua COMx pela sua porta (ex: COM3 ou /dev/ttyUSB0)
+# Replace COMx with your specific port (e.g., COM3 or /dev/ttyUSB0)
 idf.py -p COMx flash monitor
 ```
 
 ---
 
-## 📦 Arquitetura de Software (Firmware)
+## 🖥️ Desktop Interface
 
-O código segue uma estrutura modular para facilitar a manutenção:
+The Graphics User Interface (UI) allows you to visualize telemetry data and send control commands. The Python source code is located in the `Interface/` folder.
 
-* **`main/PID/`**: Lógica de controle e interface com SimpleFOC.
-* **`main/MPU6050/`**: Driver do sensor e gestão do Filtro de Kalman.
-* **`main/BUFFER/`**: Buffer circular para desacoplar a leitura do sensor (rápida) do envio MQTT (lento).
-* **`main/WIFI_MQTT/`**: Gerenciamento de conexão assíncrona.
-* **`main/LOGGER/`**: Redirecionamento de logs (Serial + MQTT).
+### Interface Structure
 
----
+- **`main.py`**: Entry Point. Initializes Flet and MQTT process.
+- **`GUI/app.py`**: Builds the UI (Sliders, Charts, Telemetry Cards).
+- **`favoritos.xlsx`**: Local storage for saved positions.
+- **`MQTT/`**: Communication Module.
+  - `config.py`: Broker and Topic Configurations.
+  - `cliente.py`: Paho-MQTT Client with debounce logic.
+  - `mqtt_process.py`: Background process to prevent GUI freezing.
+  - `mqtt_logger.py`: Utility for saving logs to CSV.
 
-## 🖥️ Interface Desktop
+### Running the Interface
 
-A interface gráfica permite visualizar a telemetria e enviar comandos. O código Python encontra-se na pasta `Interface/`.
+**Prerequisites:** Python 3.10+ and `pip`.
 
-### Estrutura da Interface
-
-- **`main.py`**: Ponto de entrada. Inicializa o Flet e o processo MQTT.
-- **`GUI/app.py`**: Constrói a UI (Sliders, Gráficos, Cards de Telemetria).
-- **`favoritos.xlsx`**: Armazenamento local de posições salvas.
-- **`MQTT/`**: Módulo de comunicação.
-  - `config.py`: Configurações do Broker e Tópicos.
-  - `cliente.py`: Cliente Paho-MQTT com lógica de debounce.
-  - `mqtt_process.py`: Processo em background para não travar a GUI.
-  - `mqtt_logger.py`: Utilitário para salvar logs em CSV.
-
-### Como Rodar a Interface
-
-**Requisitos:** Python 3.10+ e `pip`.
-
-1.  Acesse a pasta da interface:
+1.  Navigate to the interface folder:
     ```bash
     cd Interface
     ```
-2.  Crie e ative um ambiente virtual (recomendado):
+2.  Create and activate a virtual environment (recommended):
     ```bash
     python -m venv .venv
     # Windows:
@@ -170,28 +151,28 @@ A interface gráfica permite visualizar a telemetria e enviar comandos. O códig
     # Linux/Mac:
     source .venv/bin/activate
     ```
-3.  Instale as dependências:
+3.  Install dependencies:
     ```bash
     pip install -r requirements.txt
     ```
-    *(Conteúdo do requirements.txt: `flet`, `paho-mqtt`, `openpyxl`)*
+    *(requirements.txt content: `flet`, `paho-mqtt`, `openpyxl`)*
 
-4.  Execute a aplicação:
+4.  Run the application:
     ```bash
     python main.py
     ```
 
 ---
 
-## 👏 Créditos e Bibliotecas
+## 👏 Credits and Acknowledgments
 
-Este projeto utiliza ferramentas de código aberto robustas. Agradecimentos especiais aos desenvolvedores de:
+This project uses robust open-source tools. Special thanks to the developers of:
 
-* **[SimpleFOC](https://simplefoc.com/)**: Biblioteca de controle vetorial (FOC) para Arduino/ESP32, mantida por Antun Skuric e comunidade.
-* **[I2Cdev / MPU6050](https://github.com/jrowberg/i2cdevlib)**: Driver original de Jeff Rowberg e porta para ESP32 por ElectronicCats.
-* **[Flet](https://flet.dev/)**: Framework Python utilizado para a construção da interface gráfica moderna e reativa.
-* **[ESP-IDF](https://docs.espressif.com/projects/esp-idf/en/latest/esp32/)**: Framework de desenvolvimento IoT oficial da Espressif.
+* **[SimpleFOC](https://simplefoc.com/)**: Vector Control Library (FOC) for Arduino/ESP32, maintained by Antun Skuric and the community.
+* **[I2Cdev / MPU6050](https://github.com/jrowberg/i2cdevlib)**: Jeff Rowberg’s original driver and ports for ESP32 by ElectronicCats.
+* **[Flet](https://flet.dev/)**: Python Framework used to build a modern and reactive Desktop Interface.
+* **[ESP-IDF](https://docs.espressif.com/projects/esp-idf/en/latest/esp32/)**: Espressif’s Official IoT Development Framework.
 
-## 📝 Licença e Autores
+## 📝 License and Authors
 
-Projeto desenvolvido como requisito das disciplinas de **Automação em Tempo Real** e **Projeto de Sistemas Embutidos (UFMG)**.
+This project was developed as a requirement for the **Real-Time Automation** and **Embedded Project Design** courses at the **Universidade Federal de Minas Gerais (UFMG)**.
