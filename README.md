@@ -5,6 +5,10 @@
 ![Framework](https://img.shields.io/badge/framework-ESP--IDF-green)
 ![License](https://img.shields.io/badge/license-MIT-orange)
 
+<p align="center">
+  <img src="assets/gimbal_demo.gif" width="600" alt="Gimbal Stabilization Demo">
+</p>
+
 This repository contains the firmware for the embedded system and the supervisory interface for a **2-Axis Gimbal** (Pitch and Roll). The project was developed with a focus on **Real-Time Automation** and **Embedded Systems**, using the **ESP32** microcontroller.
 
 The system combines **Field Oriented Control** (FOC), Sensor Fusion via **Kalman Filter**, and secure IoT communication over **MQTT**.
