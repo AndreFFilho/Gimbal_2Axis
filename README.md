@@ -49,6 +49,16 @@ The repository is organized in a modular way to facilitate maintenance and testi
 * **Multitasking:** Architecture based on Tasks, Queues, Mutexes and Semaphores to prevent *race conditions*.
 * **Reproducible Environment:** Native support for **Docker (Dev Containers)**.
 
+## 🧠 Technical Challenges & Control Strategy
+
+**Overcoming Sensor Latency:**
+Initially, the system relied on the MPU6050’s internal Digital Motion Processor (DMP) to obtain pitch and roll angles. However, the DMP introduced processing delays that restricted the control bandwidth. This latency prevented us from increasing the PID gains without pushing the system into instability, resulting in a sluggish motor response. 
+
+To solve this, we bypassed the DMP entirely. By implementing a custom **Kalman Filter** directly on the raw accelerometer and gyroscope data, we drastically reduced latency and increased the sampling rate. This software solution allowed for higher PID gains, yielding a much faster and more aggressive system response.
+
+**Mechanical Resonance & Structural Flexibility:**
+During high-frequency operation, we identified a mechanical limitation. The 3D-printed ABS arms exhibited structural flexibility, essentially acting as a mass-spring (second-order) system. When the motors accelerated rapidly to correct large errors, the arms vibrated. While the control loop was robust enough to stabilize the gimbal, this mechanical resonance lowered the overall margin of stability. This highlighted the crucial relationship between rigid mechanical design and high-frequency control loops.
+
 ---
 
 ## 🛠️ Hardware and Pinout
